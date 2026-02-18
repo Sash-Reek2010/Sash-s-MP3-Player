@@ -1,0 +1,147 @@
+#include <Arduino.h>
+#include <SPI.h>
+#include <SD.h>
+
+#include "AudioFileSourceSD.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioOutputI2S.h"
+
+// ================= PINS =================
+#define SD_CS   2
+#define SD_MOSI 10
+#define SD_MISO 9
+#define SD_SCK  8
+
+#define I2S_BCLK 3
+#define I2S_LRC  4
+#define I2S_DOUT 5
+
+#define BTN_PLAY  6
+#define BTN_NEXT  7
+#define BTN_PREV  1
+
+// ================= AUDIO =================
+AudioGeneratorMP3 *mp3 = nullptr;
+AudioFileSourceSD *file = nullptr;
+AudioOutputI2S *out = nullptr;
+
+// ================= STATE =================
+int currentTrack = 1;
+bool isPlaying = false;
+
+float volume = 0.4;              // safer for headphones
+const float VOL_STEP = 0.05;
+const unsigned long LONG_PRESS = 600;
+
+unsigned long nextPressTime = 0;
+unsigned long prevPressTime = 0;
+bool nextHeld = false;
+bool prevHeld = false;
+
+// ================= HELPERS =================
+String trackName(int num) {
+  char buf[20];
+  sprintf(buf, "/track%03d.mp3", num);
+  return String(buf);
+}
+
+void playTrack(int num) {
+  if (mp3) {
+    mp3->stop();
+    delete mp3;
+    delete file;
+  }
+
+  file = new AudioFileSourceSD(trackName(num).c_str());
+  mp3 = new AudioGeneratorMP3();
+  mp3->begin(file, out);
+  isPlaying = true;
+}
+
+void volumeUp() {
+  volume += VOL_STEP;
+  if (volume > 1.0) volume = 1.0;
+  out->SetGain(volume);
+}
+
+void volumeDown() {
+  volume -= VOL_STEP;
+  if (volume < 0.0) volume = 0.0;
+  out->SetGain(volume);
+}
+
+// ================= SETUP =================
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(BTN_PLAY, INPUT_PULLUP);
+  pinMode(BTN_NEXT, INPUT_PULLUP);
+  pinMode(BTN_PREV, INPUT_PULLUP);
+
+  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  if (!SD.begin(SD_CS)) {
+    Serial.println("SD INIT FAILED");
+    while (1);
+  }
+
+  out = new AudioOutputI2S();
+  out->SetPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  out->SetGain(volume);
+
+  playTrack(currentTrack);
+}
+
+// ================= LOOP =================
+void loop() {
+  if (mp3 && mp3->isRunning()) {
+    mp3->loop();
+  } else if (isPlaying) {
+    currentTrack++;
+    playTrack(currentTrack);
+  }
+
+  // ---- PLAY ----
+  if (!digitalRead(BTN_PLAY)) {
+    delay(200);
+    if (isPlaying) {
+      mp3->stop();
+      isPlaying = false;
+    } else {
+      playTrack(currentTrack);
+    }
+  }
+
+  // ---- NEXT / VOL UP ----
+  if (!digitalRead(BTN_NEXT)) {
+    if (!nextHeld) {
+      nextHeld = true;
+      nextPressTime = millis();
+    } else if (millis() - nextPressTime > LONG_PRESS) {
+      volumeUp();
+      delay(150);
+    }
+  } else if (nextHeld) {
+    if (millis() - nextPressTime < LONG_PRESS) {
+      currentTrack++;
+      playTrack(currentTrack);
+    }
+    nextHeld = false;
+  }
+
+  // ---- PREV / VOL DOWN ----
+  if (!digitalRead(BTN_PREV)) {
+    if (!prevHeld) {
+      prevHeld = true;
+      prevPressTime = millis();
+    } else if (millis() - prevPressTime > LONG_PRESS) {
+      volumeDown();
+      delay(150);
+    }
+  } else if (prevHeld) {
+    if (millis() - prevPressTime < LONG_PRESS) {
+      if (currentTrack > 1) currentTrack--;
+      playTrack(currentTrack);
+    }
+    prevHeld = false;
+  }
+}
