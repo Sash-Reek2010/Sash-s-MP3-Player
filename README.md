@@ -1,6 +1,7 @@
 # MP3 Player and Speaker!
-<img width="950" height="837" alt="Screenshot 2026-02-18 120725" src="https://github.com/user-attachments/assets/21b34bea-2e24-4e5d-b23c-bbbb16c7c215" />
-<img width="1088" height="815" alt="Screenshot 2026-02-18 120706" src="https://github.com/user-attachments/assets/5f93963d-ac95-43cf-83a5-65619167d424" />
+<img width="759" height="693" alt="image" src="https://github.com/user-attachments/assets/f8dab70a-a3ea-49fa-8e5d-cf37dc2d0294" />
+<img width="1002" height="686" alt="image" src="https://github.com/user-attachments/assets/bceea2fd-df9d-4499-94e0-2bf6f1cce987" />
+
 
 ## Description
 I got really fed up with paying for my Spoitfy subscription so I decided to make my own MP3 Player!! I originally started this off as only the MP3 player but I ended up making another board to connect to a speaker too! It uses a XIAO Seeed Studio ESP32 C2 as the main brains!
